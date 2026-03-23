@@ -223,26 +223,28 @@ function TeacherDashboard() {
 
         <section className="teacher-stats">
           <div className="stat-card">
-            <h3>Horas Cubiertas</h3>
-            <p>{horasCubiertas}</p>
-          </div>
-          <div className="stat-card">
-            <h3>Presupuesto Excedentes</h3>
-            <p style={{ fontSize: '1.2rem', color: remainingSurplus > 0 ? 'var(--primary)' : 'var(--text-soft)' }}>
-              {remainingSurplus} blq disponible
+            <h3>Excedentes Usadas</h3>
+            <p style={{ fontSize: '1.5rem', color: 'var(--accent)', fontWeight: 800 }}>
+              {budget.surplus - remainingSurplus} / {budget.surplus}
             </p>
-            <small style={{ opacity: 0.7 }}>de {budget.surplus} pedagógicos</small>
+            <small style={{ opacity: 0.7 }}>bloques pedagógicos</small>
           </div>
           <div className="stat-card">
-            <h3>Horas No Lectivas</h3>
-            <p style={{ fontSize: '1.2rem', color: usedFromNoLectivas > 0 ? '#ef4444' : 'inherit' }}>
-              {remainingNoLectivas} blq disponible
+            <h3>No Lectivas Usadas</h3>
+            <p style={{ fontSize: '1.5rem', color: usedFromNoLectivas > 0 ? '#ef4444' : 'inherit', fontWeight: 800 }}>
+              {usedFromNoLectivas} / {budget.noLectivas}
             </p>
-            <small style={{ opacity: 0.7 }}>de {budget.noLectivas} total</small>
+            <small style={{ opacity: 0.7 }}>bloques totales</small>
           </div>
           <div className="stat-card">
-            <h3>Rol</h3>
-            <p style={{ fontSize: '1.2rem', textTransform: 'capitalize' }}>Docente</p>
+            <h3>Total Cubierto</h3>
+            <p style={{ fontSize: '1.5rem', color: 'var(--accent)', fontWeight: 800 }}>{coberturas.length} blq</p>
+            <small style={{ opacity: 0.7 }}>historial acumulado</small>
+          </div>
+          <div className="stat-card">
+            <h3>Esta Semana</h3>
+            <p style={{ fontSize: '1.5rem', fontWeight: 800 }}>{horasCubiertas} blq</p>
+            <small style={{ opacity: 0.7 }}>reemplazos actuales</small>
           </div>
         </section>
 

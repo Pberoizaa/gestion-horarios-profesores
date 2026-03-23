@@ -1280,15 +1280,15 @@ function AdminDashboard() {
                     return (
                       <div className="budget-mini-panel" style={{ display: 'flex', gap: '2rem' }}>
                         <div className="stat-mini">
-                          <span style={{ fontSize: '0.8rem', opacity: 0.7, fontWeight: 600, display: 'block' }}>EXCEDENTES</span>
-                          <span style={{ fontSize: '1.2rem', fontWeight: 800, color: surplusRemaining > 0 ? 'var(--accent)' : '#94a3b8' }}>
-                            {surplusRemaining} / {budget.surplus}
+                          <span style={{ fontSize: '0.8rem', opacity: 0.7, fontWeight: 600, display: 'block' }}>EXCEDENTES USADAS</span>
+                          <span style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--accent)' }}>
+                            {surplusUsed} / {budget.surplus} blq
                           </span>
                         </div>
                         <div className="stat-mini">
-                          <span style={{ fontSize: '0.8rem', opacity: 0.7, fontWeight: 600, display: 'block' }}>NO LECTIVAS</span>
+                          <span style={{ fontSize: '0.8rem', opacity: 0.7, fontWeight: 600, display: 'block' }}>NO LECTIVAS USADAS</span>
                           <span style={{ fontSize: '1.2rem', fontWeight: 800, color: overBudget ? '#ef4444' : 'var(--text)' }}>
-                             Usadas: {nonTeachingUsed} (De {budget.noLectivas})
+                             {nonTeachingUsed} / {budget.noLectivas} blq
                           </span>
                         </div>
                         <div className="stat-mini">
