@@ -27,7 +27,7 @@ export const getBaseCoverageBudget = (contractHours, assignedClassesCount) => {
 export function calculateTeacherUsage(teacherId, schedules, coverages) {
   // Now only coverages count against the budget (which is derived from available slots)
   const coverageUsage = coverages
-    .filter(c => c.profesor_reemplazante_id === teacherId && c.estado !== 'cancelada')
+    .filter(c => c.profesor_reemplazante_id === teacherId && c.estado !== 'cancelada' && c.tipo === 'cobertura')
     .length
 
   return coverageUsage

@@ -223,7 +223,8 @@ function AdminDashboard() {
         profesor_reemplazante_id: subId,
         fecha: selectedDate,
         horario_id: horarioId,
-        estado: 'pendiente'
+        estado: 'pendiente',
+        tipo: 'cobertura'
       })
     }
 
@@ -747,7 +748,8 @@ function AdminDashboard() {
             profesor_reemplazante_id: newReemplazo.profesor_reemplazante_id,
             fecha: fechaStr,
             horario_id: block.id,
-            estado: 'pendiente'
+            estado: 'pendiente',
+            tipo: 'reemplazo'
           })
         }
       }

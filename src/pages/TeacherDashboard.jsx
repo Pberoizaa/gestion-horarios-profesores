@@ -164,7 +164,8 @@ function TeacherDashboard() {
   const currentWeekAssignments = coberturas.filter(c => 
     c.fecha >= weekStart && 
     c.fecha <= weekEnd && 
-    c.estado !== 'cancelada'
+    c.estado !== 'cancelada' &&
+    c.tipo === 'cobertura'
   )
   const horasCubiertas = currentWeekAssignments.length
 
@@ -238,13 +239,15 @@ function TeacherDashboard() {
           </div>
           <div className="stat-card">
             <h3>Total Cubierto</h3>
-            <p style={{ fontSize: '1.5rem', color: 'var(--accent)', fontWeight: 800 }}>{coberturas.length} blq</p>
+            <p style={{ fontSize: '1.5rem', color: 'var(--accent)', fontWeight: 800 }}>
+              {coberturas.filter(c => c.tipo === 'cobertura').length} blq
+            </p>
             <small style={{ opacity: 0.7 }}>historial acumulado</small>
           </div>
           <div className="stat-card">
             <h3>Esta Semana</h3>
             <p style={{ fontSize: '1.5rem', fontWeight: 800 }}>{horasCubiertas} blq</p>
-            <small style={{ opacity: 0.7 }}>reemplazos actuales</small>
+            <small style={{ opacity: 0.7 }}>coberturas actuales</small>
           </div>
         </section>
 
