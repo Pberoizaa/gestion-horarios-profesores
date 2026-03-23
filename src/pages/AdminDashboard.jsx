@@ -1446,10 +1446,15 @@ function AdminDashboard() {
                                     <span className="subject">
                                       {isTC ? 'TRABAJO COLAB.' : 
                                        isDupla ? 'DUPLA SICOSOCIAL' : 
-                                       isApoderado ? 'ATENCIÓN APODERADO' : 
+                                       isApoderado ? `ATENCIÓN APODERADO${item.curso ? ` ${item.curso}` : ''}` : 
                                        item.asignaturas?.nombre || 'Administrativo'}
                                     </span>
-                                    <span className="course">{item.curso} {item.isInherited && `(${item.ausenteNombre})`}</span>
+                                    {(!isApoderado || item.isInherited) && (
+                                      <span className="course">
+                                        {!isApoderado && item.curso} 
+                                        {item.isInherited && ` (${item.ausenteNombre})`}
+                                      </span>
+                                    )}
                                   </div>
                                 ) : (
                                   <span className="available-label" style={{ opacity: 0.3 }}>+</span>
