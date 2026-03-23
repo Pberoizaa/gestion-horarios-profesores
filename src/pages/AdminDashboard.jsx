@@ -1481,8 +1481,8 @@ function AdminDashboard() {
                               <td 
                                 key={d.id} 
                                 className={`slot ${isBloqueado ? 'is-bloqueado' : isClass ? 'is-class' : isTC ? 'is-tc' : isDupla ? 'is-dupla' : isApoderado ? 'is-apoderado' : 'is-available'} ${item?.isInherited ? 'is-inherited' : ''}`}
-                                onClick={() => !item?.isInherited && !isBloqueado && openScheduleModal(d.id, b.id, item)}
-                                style={{ cursor: (item?.isInherited || isBloqueado) ? 'default' : 'pointer' }}
+                                onClick={() => !item?.isInherited && openScheduleModal(d.id, b.id, item)}
+                                style={{ cursor: item?.isInherited ? 'default' : 'pointer' }}
                               >
                                 {item ? (
                                   <div className="item-content">
