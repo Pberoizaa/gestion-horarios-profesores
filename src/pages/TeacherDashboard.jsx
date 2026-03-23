@@ -91,14 +91,19 @@ function TeacherDashboard() {
     }
   }
 
-  // Real-time Subscription
+  // Real-time Subscription — covers all relevant tables
   useEffect(() => {
     if (!user) return
 
     const channel = supabase
       .channel('teacher_realtime_changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'coberturas' }, (payload) => {
-        console.log('Realtime coverage change:', payload)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'coberturas' }, () => {
+        fetchUserData()
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'horarios' }, () => {
+        fetchUserData()
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'reemplazos_periodos' }, () => {
         fetchUserData()
       })
       .subscribe()
