@@ -479,7 +479,7 @@ function AdminDashboard() {
         profesor_id: selectedTeacherId,
         asignatura_id: ['clase', 'administrativo'].includes(newBlock.tipo_bloque) ? newBlock.asignatura_id : null,
         tipo_bloque: newBlock.tipo_bloque,
-        curso: newBlock.tipo_bloque === 'clase' ? newBlock.curso : null,
+        curso: newBlock.curso || null,
         dia_semana: Number(newBlock.dia_semana),
         hora_inicio: targetBlock.inicio,
         hora_fin: targetBlock.fin
@@ -1446,13 +1446,13 @@ function AdminDashboard() {
                                     <span className="subject">
                                       {isTC ? 'TRABAJO COLAB.' : 
                                        isDupla ? 'DUPLA SICOSOCIAL' : 
-                                       isApoderado ? `ATENCIÓN APODERADO${item.curso ? ` ${item.curso}` : ''}` : 
+                                       isApoderado ? 'ATENCIÓN APODERADO' : 
                                        item.asignaturas?.nombre || 'Administrativo'}
                                     </span>
-                                    {(!isApoderado || item.isInherited) && (
-                                      <span className="course">
-                                        {!isApoderado && item.curso} 
-                                        {item.isInherited && ` (${item.ausenteNombre})`}
+                                    {item.curso && <span className="course">{item.curso}</span>}
+                                    {item.isInherited && (
+                                      <span className="course" style={{ fontStyle: 'italic', opacity: 0.8 }}>
+                                        ({item.ausenteNombre})
                                       </span>
                                     )}
                                   </div>
