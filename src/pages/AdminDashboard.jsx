@@ -50,6 +50,7 @@ function AdminDashboard() {
   const [asignaturas, setAsignaturas] = useState([])
   const [selectedTeacherId, setSelectedTeacherId] = useState('')
   const [teacherSchedule, setTeacherSchedule] = useState([])
+  const [teacherCoverages, setTeacherCoverages] = useState([])
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false)
   const [editingBlock, setEditingBlock] = useState(null) // { dia, bloque, item? }
   const [newBlock, setNewBlock] = useState({ 
@@ -304,13 +305,28 @@ function AdminDashboard() {
     if (!selectedTeacherId) return
     setPlannerLoading(true)
     try {
-      const { data, error } = await supabase
+      // 1. Fetch own schedule
+      const { data: schedule, error: sError } = await supabase
         .from('horarios')
         .select('*, asignaturas(nombre)')
         .eq('profesor_id', selectedTeacherId)
       
-      if (error) throw error
-      setTeacherSchedule(data)
+      if (sError) throw sError
+      setTeacherSchedule(schedule)
+
+      // 2. Fetch coverages for the current week where this teacher is the replacement
+      const { start, end } = getWeekRange(new Date().toISOString().split('T')[0])
+      const { data: coverages, error: cError } = await supabase
+        .from('coberturas')
+        .select('*, ausente:profesores!profesor_ausente_id(nombre), horarios(*, asignaturas(nombre))')
+        .eq('profesor_reemplazante_id', selectedTeacherId)
+        .gte('fecha', start)
+        .lte('fecha', end)
+        .neq('estado', 'cancelada')
+      
+      if (cError) throw cError
+      setTeacherCoverages(coverages)
+
     } catch (error) {
       console.error('Error fetching teacher schedule:', error.message)
     } finally {
@@ -319,12 +335,30 @@ function AdminDashboard() {
   }
 
   const getTeacherHorarioAt = (diaId, horaInicio) => {
-    // horaInicio is b.inicio from constants (HH:MM:00)
-    // h.hora_inicio from DB is usually HH:MM:00
-    return teacherSchedule.find(h => 
+    // Check own schedule first
+    const own = teacherSchedule.find(h => 
       h.dia_semana === diaId && 
       (h.hora_inicio.slice(0, 5) === horaInicio.slice(0, 5))
     )
+    if (own) return own
+
+    // Check coverages in the selected week
+    const currentWeekDate = new Date()
+    const coverage = teacherCoverages.find(c => {
+      const cDate = new Date(c.fecha + 'T00:00:00')
+      const cDay = cDate.getDay() === 0 ? 7 : cDate.getDay()
+      return cDay === diaId && c.horarios?.hora_inicio?.slice(0, 5) === horaInicio.slice(0, 5)
+    })
+
+    if (coverage) {
+      return {
+        ...coverage.horarios,
+        isInherited: true,
+        ausenteNombre: coverage.ausente?.nombre
+      }
+    }
+
+    return null
   }
 
   const handleSaveBlock = async (e) => {
@@ -1212,6 +1246,7 @@ function AdminDashboard() {
                     <span className="legend-item dupla">Dupla</span>
                     <span className="legend-item apoderado">Apoderado</span>
                     <span className="legend-item available">Libre (Clic para añadir)</span>
+                    <span className="legend-item inherited" style={{ background: '#fdf2f2', color: '#f97316', border: '1px solid #fecaca' }}>Reemplazo</span>
                   </div>
                 </div>
 
@@ -1241,19 +1276,20 @@ function AdminDashboard() {
                             return (
                               <td 
                                 key={d.id} 
-                                className={`slot ${isClass ? 'is-class' : isTC ? 'is-tc' : isDupla ? 'is-dupla' : isApoderado ? 'is-apoderado' : 'is-available'}`}
-                                onClick={() => openScheduleModal(d.id, b.id, item)}
-                                style={{ cursor: 'pointer' }}
+                                className={`slot ${isClass ? 'is-class' : isTC ? 'is-tc' : isDupla ? 'is-dupla' : isApoderado ? 'is-apoderado' : 'is-available'} ${item?.isInherited ? 'is-inherited' : ''}`}
+                                onClick={() => !item?.isInherited && openScheduleModal(d.id, b.id, item)}
+                                style={{ cursor: item?.isInherited ? 'default' : 'pointer' }}
                               >
                                 {item ? (
                                   <div className="item-content">
+                                    {item.isInherited && <span className="type-tag" style={{ background: '#f97316' }}>REEMPLAZO</span>}
                                     <span className="subject">
                                       {isTC ? 'TRABAJO COLAB.' : 
                                        isDupla ? 'DUPLA SICOSOCIAL' : 
                                        isApoderado ? 'ATENCIÓN APODERADO' : 
                                        item.asignaturas?.nombre || 'Administrativo'}
                                     </span>
-                                    {item.curso && item.curso !== 'N/A' && <span className="course">{item.curso}</span>}
+                                    <span className="course">{item.curso} {item.isInherited && `(${item.ausenteNombre})`}</span>
                                   </div>
                                 ) : (
                                   <span className="available-label" style={{ opacity: 0.3 }}>+</span>
