@@ -150,9 +150,11 @@ function TeacherDashboard() {
           </div>
         </div>
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-          <button className="btn-edit" onClick={() => setIsPasswordModalOpen(true)}>
-            Cambiar Clave
-          </button>
+          {profile?.cambio_clave_pendiente && (
+            <button className="btn-edit" onClick={() => setIsPasswordModalOpen(true)}>
+              Cambiar Clave
+            </button>
+          )}
           <button className="logout-button" onClick={() => supabase.auth.signOut()}>
             Cerrar Sesión
           </button>
