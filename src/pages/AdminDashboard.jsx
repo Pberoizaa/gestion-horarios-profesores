@@ -1784,7 +1784,13 @@ function AdminDashboard() {
                       .filter(c => c.tipo === 'cobertura') // EXCLUSIVE for coverages
                       .map(cov => (
                         <tr key={cov.id}>
-                          <td style={{ fontWeight: 800, color: 'var(--accent)', fontSize: '1.1rem' }}>{cov.horarios?.bloque_id}°</td>
+                          <td style={{ fontWeight: 800, color: 'var(--accent)', fontSize: '1.1rem' }}>
+                            {(() => {
+                              const horaInicio = cov.horarios?.hora_inicio?.slice(0,5)
+                              const bloque = BLOQUES.find(b => b.inicio.slice(0,5) === horaInicio)
+                              return bloque ? `${bloque.id}°` : (horaInicio || '-')
+                            })()}
+                          </td>
                           <td>
                             <span style={{ 
                               fontSize: '0.7rem', 
