@@ -92,6 +92,8 @@ function AdminDashboard() {
         console.log('Realtime coverage change:', payload)
         fetchPlannedCoverages()
         if (activeTab === 'coberturas') fetchPlannerData()
+        // Also update the summary modal if it's currently open
+        if (isSummaryModalOpen) fetchDailySummary()
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'profesores' }, () => {
         fetchProfesores() // Refresh teacher list and budgets
@@ -341,17 +343,15 @@ function AdminDashboard() {
       
       if (error) throw error
       
-      // Optimistic update
+      // Optimistic update — immediate UI feedback
       setSummaryCoverages(prev => prev.filter(c => c.id !== cov.id))
       
-      // Full refreshes
+      // Refresh the planner list and teacher schedule
       fetchPlannedCoverages()
       if (selectedTeacherId) fetchTeacherSchedule()
       
-      // Re-fetch the summary to be 100% sure we are synced with server
-      if (isSummaryModalOpen) {
-        fetchDailySummary()
-      }
+      // NOTE: do NOT call fetchDailySummary here — Supabase may not have committed yet.
+      // The realtime subscription handles the server-confirmed refresh.
     } catch (error) {
       alert('Error al eliminar: ' + error.message)
     }
