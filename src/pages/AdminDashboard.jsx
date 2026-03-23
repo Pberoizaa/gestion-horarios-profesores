@@ -246,9 +246,20 @@ function AdminDashboard() {
 
     setProcessing(true)
     try {
+      // 2. Perform upsert-like logic: Delete existing coverages for these specific slots/date/absent
+      const horarioIds = coverageEntries.map(e => e.horario_id)
+      await supabase
+        .from('coberturas')
+        .delete()
+        .eq('fecha', selectedDate)
+        .eq('profesor_ausente_id', absentTeacherId)
+        .in('horario_id', horarioIds)
+
+      // 3. Insert new entries
       const { error } = await supabase.from('coberturas').insert(coverageEntries)
       if (error) throw error
-      alert('Coberturas guardadas con éxito.')
+
+      alert('Planificación guardada con éxito.')
       setAssignments({})
       fetchPlannedCoverages()
     } catch (error) {
@@ -326,10 +337,13 @@ function AdminDashboard() {
     if (!confirm('¿Deseas eliminar permanentemente esta cobertura?')) return
     
     try {
-      const { error } = await supabase.from('coberturas').delete().eq('id', id)
+      const { error, count } = await supabase.from('coberturas').delete({ count: 'exact' }).eq('id', id)
       if (error) throw error
       
-      alert('Cobertura eliminada con éxito.')
+      alert(`Cobertura eliminada con éxito. (Filas: ${count})`)
+      
+      // Artificial delay to ensure DB sync before re-fetch
+      await new Promise(r => setTimeout(r, 800))
       
       fetchPlannedCoverages()
       if (selectedTeacherId) {
