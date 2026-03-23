@@ -39,6 +39,7 @@ function AdminDashboard() {
   const [plannedCoverages, setPlannedCoverages] = useState([])
   const [plannerLoading, setPlannerLoading] = useState(false)
   const [activeCoverageDates, setActiveCoverageDates] = useState([])
+  const [allBloqueos, setAllBloqueos] = useState([]) // All blocks for the current day
   
   // Reemplazos de Larga Duración State
   const [reemplazos, setReemplazos] = useState([])
@@ -66,6 +67,11 @@ function AdminDashboard() {
     bloque_id: 1
   })
 
+  // Bloqueos de bloques
+  const [teacherBlocks, setTeacherBlocks] = useState([])
+  const [isBloqueoModalOpen, setIsBloqueoModalOpen] = useState(false)
+  const [newBloqueo, setNewBloqueo] = useState({ dia_semana: 5, bloque_desde: 1, bloque_hasta: 10, motivo: '' })
+
 
   useEffect(() => {
     fetchProfesores()
@@ -77,6 +83,7 @@ function AdminDashboard() {
   useEffect(() => {
     if (activeTab === 'horarios' && selectedTeacherId) {
       fetchTeacherSchedule()
+      fetchTeacherBlocks()
     }
   }, [activeTab, selectedTeacherId])
 
@@ -168,9 +175,15 @@ function AdminDashboard() {
 
       setAllSchedules(allS) // This now contains everything
       
-      // Update: use daySchedules for initial busy check, or just filter allS later.
-      // For simplicity, I'll store allS and filter by day in getAvailableTeachers.
+      // 4. Fetch ALL bloqueos for that day
+      const { data: dayBlocks, error: bError } = await supabase
+        .from('bloqueos_profesor')
+        .select('*')
+        .eq('dia_semana', diaSemana)
       
+      if (bError) throw bError
+      setAllBloqueos(dayBlocks || [])
+
       // Reset assignments
       setAssignments({})
 
@@ -186,10 +199,16 @@ function AdminDashboard() {
     const busyTeacherIds = allSchedules
       .filter(s => s.dia_semana === DIAS.find(d => d.corto === new Date(selectedDate + 'T00:00:00').toLocaleDateString('es-ES', {weekday: 'short'}).toUpperCase().slice(0,2))?.id && s.hora_inicio === horaInicio)
       .map(s => s.profesor_id)
+
+    // 1.5 Teachers who have a BLOCK at this time
+    const blockOrdinal = BLOQUES.find(b => b.inicio.slice(0,5) === horaInicio.slice(0,5))?.id
+    const blockedTeacherIds = allBloqueos
+      .filter(bl => blockOrdinal >= bl.bloque_desde && blockOrdinal <= bl.bloque_hasta)
+      .map(bl => bl.profesor_id)
     
     // 2. Map available teachers with their budget info
     return profesores
-      .filter(p => p.activo && p.rol === 'profesor' && !busyTeacherIds.includes(p.id))
+      .filter(p => p.activo && p.rol === 'profesor' && !busyTeacherIds.includes(p.id) && !blockedTeacherIds.includes(p.id))
       .map(p => {
         // Count planned coverages for the SAME week as selectedDate
         const { start, end } = getWeekRange(selectedDate)
@@ -460,7 +479,6 @@ function AdminDashboard() {
     if (own) return own
 
     // Check coverages in the selected week
-    const currentWeekDate = new Date()
     const coverage = teacherCoverages.find(c => {
       const cDate = new Date(c.fecha + 'T00:00:00')
       const cDay = cDate.getDay() === 0 ? 7 : cDate.getDay()
@@ -476,7 +494,67 @@ function AdminDashboard() {
       }
     }
 
+    // Check if this slot is blocked
+    const bloqueObj = BLOQUES.find(b => b.inicio.slice(0, 5) === horaInicio.slice(0, 5))
+    if (bloqueObj) {
+      const bloqueo = teacherBlocks.find(bl =>
+        bl.dia_semana === diaId &&
+        bloqueObj.id >= bl.bloque_desde &&
+        bloqueObj.id <= bl.bloque_hasta
+      )
+      if (bloqueo) {
+        return { tipo_bloque: 'bloqueado', motivo: bloqueo.motivo, bloqueoId: bloqueo.id }
+      }
+    }
+
     return null
+  }
+
+  async function fetchTeacherBlocks() {
+    if (!selectedTeacherId) return
+    try {
+      const { data, error } = await supabase
+        .from('bloqueos_profesor')
+        .select('*')
+        .eq('profesor_id', selectedTeacherId)
+        .order('dia_semana')
+      if (error) throw error
+      setTeacherBlocks(data || [])
+    } catch (error) {
+      console.error('Error fetching bloqueos:', error.message)
+    }
+  }
+
+  async function handleSaveBloqueo(e) {
+    e.preventDefault()
+    setProcessing(true)
+    try {
+      const { error } = await supabase
+        .from('bloqueos_profesor')
+        .insert([{ ...newBloqueo, profesor_id: selectedTeacherId,
+          dia_semana: Number(newBloqueo.dia_semana),
+          bloque_desde: Number(newBloqueo.bloque_desde),
+          bloque_hasta: Number(newBloqueo.bloque_hasta)
+        }])
+      if (error) throw error
+      setNewBloqueo({ dia_semana: 5, bloque_desde: 1, bloque_hasta: 10, motivo: '' })
+      fetchTeacherBlocks()
+    } catch (error) {
+      alert('Error guardando bloqueo: ' + error.message)
+    } finally {
+      setProcessing(false)
+    }
+  }
+
+  async function handleDeleteBloqueo(id) {
+    if (!confirm('¿Eliminar este bloqueo?')) return
+    try {
+      const { error } = await supabase.from('bloqueos_profesor').delete().eq('id', id)
+      if (error) throw error
+      fetchTeacherBlocks()
+    } catch (error) {
+      alert('Error eliminando bloqueo: ' + error.message)
+    }
   }
 
   const handleSaveBlock = async (e) => {
@@ -1386,6 +1464,15 @@ function AdminDashboard() {
                 >
                   👥 Reporte Duplas (Todos)
                 </button>
+                {selectedTeacherId && (
+                  <button 
+                    className="secondary" 
+                    style={{ background: '#dc2626', color: 'white' }}
+                    onClick={() => setIsBloqueoModalOpen(true)}
+                  >
+                    🚫 Gestionar Bloqueos ({teacherBlocks.length})
+                  </button>
+                )}
               </div>
             </div>
 
@@ -1452,6 +1539,7 @@ function AdminDashboard() {
                     <span className="legend-item apoderado">Apoderado</span>
                     <span className="legend-item available">Libre (Clic para añadir)</span>
                     <span className="legend-item inherited" style={{ background: '#fdf2f2', color: '#f97316', border: '1px solid #fecaca' }}>Reemplazo</span>
+                    <span className="legend-item" style={{ background: '#f1f5f9', color: '#64748b', border: '1px solid #cbd5e1' }}>🚫 Bloqueado</span>
                   </div>
                 </div>
 
@@ -1476,33 +1564,43 @@ function AdminDashboard() {
                             const isTC = type === 'tc'
                             const isDupla = type === 'dupla'
                             const isApoderado = type === 'apoderado'
-                            const isClass = item && !isTC && !isDupla && !isApoderado
+                            const isBloqueado = type === 'bloqueado'
+                            const isClass = item && !isTC && !isDupla && !isApoderado && !isBloqueado
                             
                             return (
                               <td 
                                 key={d.id} 
-                                className={`slot ${isClass ? 'is-class' : isTC ? 'is-tc' : isDupla ? 'is-dupla' : isApoderado ? 'is-apoderado' : 'is-available'} ${item?.isInherited ? 'is-inherited' : ''}`}
-                                onClick={() => !item?.isInherited && openScheduleModal(d.id, b.id, item)}
-                                style={{ cursor: item?.isInherited ? 'default' : 'pointer' }}
+                                className={`slot ${isBloqueado ? 'is-bloqueado' : isClass ? 'is-class' : isTC ? 'is-tc' : isDupla ? 'is-dupla' : isApoderado ? 'is-apoderado' : 'is-available'} ${item?.isInherited ? 'is-inherited' : ''}`}
+                                onClick={() => !item?.isInherited && !isBloqueado && openScheduleModal(d.id, b.id, item)}
+                                style={{ cursor: (item?.isInherited || isBloqueado) ? 'default' : 'pointer' }}
                               >
                                 {item ? (
                                   <div className="item-content">
-                                    {item.isInherited && (
-                                      <span className="type-tag" style={{ background: item.tipo === 'reemplazo' ? '#f97316' : 'var(--accent)' }}>
-                                        {item.tipo === 'reemplazo' ? 'REEMPLAZO' : 'COBERTURA'}
-                                      </span>
-                                    )}
-                                    <span className="subject">
-                                      {isTC ? 'TRABAJO COLAB.' : 
-                                       isDupla ? 'DUPLA SICOSOCIAL' : 
-                                       isApoderado ? 'ATENCIÓN APODERADO' : 
-                                       item.asignaturas?.nombre || 'Administrativo'}
-                                    </span>
-                                    {item.curso && <span className="course">{item.curso}</span>}
-                                    {item.isInherited && (
-                                      <span className="course" style={{ fontStyle: 'italic', opacity: 0.8 }}>
-                                        ({item.ausenteNombre})
-                                      </span>
+                                    {isBloqueado ? (
+                                      <>
+                                        <span className="subject" style={{ fontSize: '1.1rem' }}>🚫</span>
+                                        {item.motivo && <span className="course" style={{ opacity: 0.7, fontSize: '0.7rem' }}>{item.motivo}</span>}
+                                      </>
+                                    ) : (
+                                      <>
+                                        {item.isInherited && (
+                                          <span className="type-tag" style={{ background: item.tipo === 'reemplazo' ? '#f97316' : 'var(--accent)' }}>
+                                            {item.tipo === 'reemplazo' ? 'REEMPLAZO' : 'COBERTURA'}
+                                          </span>
+                                        )}
+                                        <span className="subject">
+                                          {isTC ? 'TRABAJO COLAB.' : 
+                                           isDupla ? 'DUPLA SICOSOCIAL' : 
+                                           isApoderado ? 'ATENCIÓN APODERADO' : 
+                                           item.asignaturas?.nombre || 'Administrativo'}
+                                        </span>
+                                        {item.curso && <span className="course">{item.curso}</span>}
+                                        {item.isInherited && (
+                                          <span className="course" style={{ fontStyle: 'italic', opacity: 0.8 }}>
+                                            ({item.ausenteNombre})
+                                          </span>
+                                        )}
+                                      </>
                                     )}
                                   </div>
                                 ) : (
@@ -1625,6 +1723,84 @@ function AdminDashboard() {
           </section>
         )}
       </main>
+      {isBloqueoModalOpen && (
+        <div className="modal-overlay">
+          <div className="modal-content schedule-modal" style={{ maxWidth: '600px' }}>
+            <div className="modal-header">
+              <h2>🚫 Bloqueos de {profesores.find(p => p.id === selectedTeacherId)?.nombre}</h2>
+              <button className="btn-close" onClick={() => setIsBloqueoModalOpen(false)}>Cerrar</button>
+            </div>
+            <p style={{ opacity: 0.7, marginBottom: '1.5rem', fontSize: '0.9rem' }}>
+              Bloquea rangos de bloques por día. Los bloques bloqueados no se pueden editar ni aparecen como disponibles para coberturas.
+            </p>
+
+            <form onSubmit={handleSaveBloqueo} style={{ background: 'var(--bg-soft)', padding: '1.25rem', borderRadius: '1rem', marginBottom: '1.5rem' }}>
+              <h4 style={{ marginTop: 0, marginBottom: '1rem' }}>Agregar nuevo bloqueo</h4>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.75rem', alignItems: 'flex-end' }}>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label>Día</label>
+                  <select value={newBloqueo.dia_semana} onChange={e => setNewBloqueo({...newBloqueo, dia_semana: e.target.value})}>
+                    <option value={1}>Lunes</option>
+                    <option value={2}>Martes</option>
+                    <option value={3}>Miércoles</option>
+                    <option value={4}>Jueves</option>
+                    <option value={5}>Viernes</option>
+                  </select>
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label>Bloque desde</label>
+                  <select value={newBloqueo.bloque_desde} onChange={e => setNewBloqueo({...newBloqueo, bloque_desde: e.target.value})}>
+                    {BLOQUES.map(b => <option key={b.id} value={b.id}>{b.id}° ({b.inicio.slice(0,5)})</option>)}
+                  </select>
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label>Bloque hasta</label>
+                  <select value={newBloqueo.bloque_hasta} onChange={e => setNewBloqueo({...newBloqueo, bloque_hasta: e.target.value})}>
+                    {BLOQUES.filter(b => b.id >= Number(newBloqueo.bloque_desde)).map(b => <option key={b.id} value={b.id}>{b.id}° ({b.fin.slice(0,5)})</option>)}
+                  </select>
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label>Motivo (opcional)</label>
+                  <input type="text" placeholder="Ej: No trabaja los viernes" value={newBloqueo.motivo} onChange={e => setNewBloqueo({...newBloqueo, motivo: e.target.value})} />
+                </div>
+                <button type="submit" className="btn-save" disabled={processing} style={{ height: '42px' }}>
+                  {processing ? '...' : '+ Agregar'}
+                </button>
+              </div>
+            </form>
+
+            <h4 style={{ marginBottom: '0.75rem' }}>Bloqueos activos ({teacherBlocks.length})</h4>
+            {teacherBlocks.length === 0 ? (
+              <p style={{ opacity: 0.5, textAlign: 'center', padding: '1.5rem' }}>No hay bloqueos configurados para este profesor.</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                {teacherBlocks.map(bl => {
+                  const diaName = ['', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'][bl.dia_semana]
+                  const desde = BLOQUES.find(b => b.id === bl.bloque_desde)
+                  const hasta = BLOQUES.find(b => b.id === bl.bloque_hasta)
+                  return (
+                    <div key={bl.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem 1rem', background: 'var(--bg-soft)', borderRadius: '0.75rem', border: '1px solid var(--border)' }}>
+                      <div>
+                        <span style={{ fontWeight: 700 }}>🚫 {diaName}</span>
+                        <span style={{ marginLeft: '0.5rem', opacity: 0.8 }}>
+                          Bloque {bl.bloque_desde}° ({desde?.inicio?.slice(0,5)}) → {bl.bloque_hasta}° ({hasta?.fin?.slice(0,5)})
+                        </span>
+                        {bl.motivo && <span style={{ marginLeft: '0.5rem', color: '#64748b', fontStyle: 'italic' }}>— {bl.motivo}</span>}
+                      </div>
+                      <button className="btn-delete" style={{ padding: '0.3rem 0.6rem' }} onClick={() => handleDeleteBloqueo(bl.id)}>🗑️</button>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+
+            <div className="modal-actions" style={{ marginTop: '1.5rem' }}>
+              <button className="btn-save" onClick={() => setIsBloqueoModalOpen(false)} style={{ width: '100%' }}>Cerrar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {isScheduleModalOpen && (
         <div className="modal-overlay">
           <div className="modal-content schedule-modal">

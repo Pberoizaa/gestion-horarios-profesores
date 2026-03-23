@@ -626,6 +626,20 @@ main {
   border-left: 4px solid #f97316 !important; /* orange */
 }
 
+.slot.is-bloqueado {
+  background: repeating-linear-gradient(
+    135deg,
+    #f1f5f9,
+    #f1f5f9 6px,
+    #e2e8f0 6px,
+    #e2e8f0 12px
+  );
+  color: #94a3b8;
+  border: 1px dashed #cbd5e1 !important;
+  cursor: not-allowed !important;
+  opacity: 0.85;
+}
+
 .type-tag {
   font-size: 0.65rem;
   font-weight: 800;

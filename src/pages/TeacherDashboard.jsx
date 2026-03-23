@@ -16,6 +16,7 @@ function TeacherDashboard({ user: initialUser }) {
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [passwordProcessing, setPasswordProcessing] = useState(false)
+  const [teacherBlocks, setTeacherBlocks] = useState([])
 
   useEffect(() => {
     if (initialUser) setUser(initialUser)
@@ -87,6 +88,15 @@ function TeacherDashboard({ user: initialUser }) {
       if (coverageError) throw coverageError
       setCoberturas(coverageData)
 
+      // 6. Fetch blocks
+      const { data: blockData, error: bError } = await supabase
+        .from('bloqueos_profesor')
+        .select('*')
+        .eq('profesor_id', profile.id)
+      
+      if (bError) throw bError
+      setTeacherBlocks(blockData || [])
+
     } catch (error) {
       console.error('Error fetching teacher data:', error.message)
     } finally {
@@ -131,10 +141,26 @@ function TeacherDashboard({ user: initialUser }) {
     if (own) return own
 
     // Check inherited schedules
-    return inheritedHorarios.find(h => 
+    const inherited = inheritedHorarios.find(h => 
       h.dia_semana === diaId && 
       (h.hora_inicio.slice(0, 5) === horaInicio.slice(0, 5))
     )
+    if (inherited) return inherited
+
+    // Check if this slot is blocked
+    const bloqueObj = BLOQUES.find(b => b.inicio.slice(0, 5) === horaInicio.slice(0, 5))
+    if (bloqueObj) {
+      const bloqueo = teacherBlocks.find(bl =>
+        bl.dia_semana === diaId &&
+        bloqueObj.id >= bl.bloque_desde &&
+        bloqueObj.id <= bl.bloque_hasta
+      )
+      if (bloqueo) {
+        return { tipo_bloque: 'bloqueado', motivo: bloqueo.motivo }
+      }
+    }
+
+    return null
   }
 
   const handleChangePassword = async (e) => {
@@ -333,6 +359,7 @@ function TeacherDashboard({ user: initialUser }) {
               <span className="legend-item apoderado">Apoderado</span>
               <span className="legend-item coverage">Cobertura</span>
               <span className="legend-item available">Disponible</span>
+              <span className="legend-item" style={{ background: '#f1f5f9', color: '#64748b', border: '1px solid #cbd5e1' }}>🚫 Bloqueado</span>
             </div>
           </div>
           
@@ -355,10 +382,12 @@ function TeacherDashboard({ user: initialUser }) {
                     </td>
                     {DIAS.map(d => {
                       const item = getHorarioAt(d.id, b.inicio)
-                      const isTC = item?.tipo_bloque === 'tc'
-                      const isDupla = item?.tipo_bloque === 'dupla'
-                      const isApoderado = item?.tipo_bloque === 'apoderado'
-                      const isClass = item && !isTC && !isDupla && !isApoderado
+                      const type = item?.tipo_bloque?.trim().toLowerCase()
+                      const isTC = type === 'tc'
+                      const isDupla = type === 'dupla'
+                      const isApoderado = type === 'apoderado'
+                      const isBloqueado = type === 'bloqueado'
+                      const isClass = item && !isTC && !isDupla && !isApoderado && !isBloqueado
                       const isFridayEarlyExit = d.id === 5 && b.id > 6
                       
                       // Check for coverage in the current week
@@ -388,27 +417,36 @@ function TeacherDashboard({ user: initialUser }) {
                       }
 
                       return (
-                        <td key={d.id} className={`slot ${isClass ? 'is-class' : isTC ? 'is-tc' : isDupla ? 'is-dupla' : isApoderado ? 'is-apoderado' : 'is-available'} ${item?.isInherited ? 'is-inherited' : ''}`}>
-                          {isClass ? (
+                        <td key={d.id} className={`slot ${isBloqueado ? 'is-bloqueado' : isClass ? 'is-class' : isTC ? 'is-tc' : isDupla ? 'is-dupla' : isApoderado ? 'is-apoderado' : 'is-available'} ${item?.isInherited ? 'is-inherited' : ''}`}>
+                          {item ? (
                             <div className="item-content">
-                              {item?.isInherited && <span className="type-tag" style={{ background: '#f59e0b' }}>REEMPLAZO</span>}
-                              <span className="subject">{item.asignaturas?.nombre}</span>
-                              <span className="course">{item.curso} {item?.isInherited && `(${item.ausenteNombre})`}</span>
-                            </div>
-                          ) : isTC ? (
-                            <div className="item-content">
-                              <span className="tc-label">TRABAJO COLAB.</span>
-                              {item.curso && item.curso !== 'N/A' && <span className="course">{item.curso}</span>}
-                            </div>
-                          ) : isDupla ? (
-                            <div className="item-content">
-                              <span className="subject">DUPLA SICOSOCIAL</span>
-                              {item.curso && item.curso !== 'N/A' && <span className="course">{item.curso}</span>}
-                            </div>
-                          ) : isApoderado ? (
-                            <div className="item-content">
-                              <span className="subject">ATENCIÓN APODERADO</span>
-                              {item.curso && item.curso !== 'N/A' && <span className="course">{item.curso}</span>}
+                              {isBloqueado ? (
+                                <>
+                                  <span className="subject" style={{ fontSize: '1.2rem' }}>🚫</span>
+                                  {item.motivo && <span className="course" style={{ opacity: 0.7 }}>{item.motivo}</span>}
+                                </>
+                              ) : isClass ? (
+                                <>
+                                  {item?.isInherited && <span className="type-tag" style={{ background: '#f59e0b' }}>REEMPLAZO</span>}
+                                  <span className="subject">{item.asignaturas?.nombre}</span>
+                                  <span className="course">{item.curso} {item?.isInherited && `(${item.ausenteNombre})`}</span>
+                                </>
+                              ) : isTC ? (
+                                <>
+                                  <span className="tc-label">TRABAJO COLAB.</span>
+                                  {item.curso && item.curso !== 'N/A' && <span className="course">{item.curso}</span>}
+                                </>
+                              ) : isDupla ? (
+                                <>
+                                  <span className="subject">DUPLA SICOSOCIAL</span>
+                                  {item.curso && item.curso !== 'N/A' && <span className="course">{item.curso}</span>}
+                                </>
+                              ) : isApoderado ? (
+                                <>
+                                  <span className="subject">ATENCIÓN APODERADO</span>
+                                  {item.curso && item.curso !== 'N/A' && <span className="course">{item.curso}</span>}
+                                </>
+                              ) : null}
                             </div>
                           ) : (
                             <span className="available-label">Disponible</span>
