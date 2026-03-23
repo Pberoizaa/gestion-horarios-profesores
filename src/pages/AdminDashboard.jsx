@@ -365,7 +365,9 @@ function AdminDashboard() {
         .order('nombre')
       
       if (error) throw error
-      setProfesores(data)
+      // Filter out UTP and Apoyo UTP as they are admins only
+      const filtered = data.filter(p => !['UTP', 'Apoyo UTP'].includes(p.cargo))
+      setProfesores(filtered)
     } catch (error) {
       console.error('Error fetching profesores:', error.message)
     } finally {
