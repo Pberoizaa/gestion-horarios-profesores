@@ -280,15 +280,38 @@ function AdminDashboard() {
         `)
         .eq('fecha', selectedDate)
         .neq('estado', 'cancelada')
-        .order('bloque_id')
-      
       if (error) throw error
-      setSummaryCoverages(data || [])
+      
+      // Sort client-side by bloque_id
+      const sorted = (data || []).sort((a, b) => (a.horarios?.bloque_id || 0) - (b.horarios?.bloque_id || 0))
+      setSummaryCoverages(sorted)
       setIsSummaryModalOpen(true)
     } catch (error) {
       alert('Error al obtener resumen: ' + error.message)
     } finally {
       setProcessing(false)
+    }
+  }
+
+  const handleDownloadDailyExcel = () => {
+    if (summaryCoverages.length === 0) return
+    
+    try {
+      const excelData = summaryCoverages.map(cov => ({
+        'Bloque': `${cov.horarios?.bloque_id}°`,
+        'Profesor Ausente': cov.ausente?.nombre,
+        'Profesor Reemplaza': cov.reemplazo?.nombre,
+        'Asignatura': cov.horarios?.asignaturas?.nombre || 'Administrativo',
+        'Curso/Detalle': cov.curso || 'N/A'
+      }))
+
+      const ws = XLSX.utils.json_to_sheet(excelData)
+      const wb = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(wb, ws, "Coberturas")
+      
+      XLSX.writeFile(wb, `Coberturas_Dia_${selectedDate}.xlsx`)
+    } catch (error) {
+      alert('Error al descargar Excel: ' + error.message)
     }
   }
 
@@ -1634,6 +1657,14 @@ function AdminDashboard() {
                   <span style={{ fontSize: '0.8rem', opacity: 0.7, fontWeight: 600 }}>TOTAL BLOQUES A CUBRIR</span>
                   <p style={{ fontSize: '2rem', fontWeight: 800, margin: 0, color: 'var(--accent)' }}>{summaryCoverages.length}</p>
                </div>
+               <button 
+                  className="btn-edit" 
+                  onClick={handleDownloadDailyExcel}
+                  style={{ height: 'auto', padding: '1rem', background: '#10b981', color: 'white', border: 'none' }}
+                  disabled={summaryCoverages.length === 0}
+               >
+                 📥 Descargar Excel
+               </button>
             </div>
 
             <div className="summary-table-container" style={{ maxHeight: '50vh', overflowY: 'auto', border: '1px solid var(--border)', borderRadius: '1rem' }}>
