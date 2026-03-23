@@ -109,6 +109,12 @@ function TeacherDashboard({ user: initialUser }) {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'reemplazos_periodos' }, () => {
         fetchUserData()
       })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profesores' }, (payload) => {
+        // Only refresh if it's THIS teacher's profile being updated
+        if (payload.new && payload.new.id === profile?.id) {
+          fetchUserData()
+        }
+      })
       .subscribe()
 
     return () => {
@@ -181,9 +187,17 @@ function TeacherDashboard({ user: initialUser }) {
   const clasesCount = horarios.filter(h => h.tipo_bloque === 'clase').length
 
   const budget = getDetailedBudget(profile?.horas_excedentes, profile?.horas_no_lectivas)
-  const remainingSurplus = Math.max(0, budget.surplus - horasCubiertas)
-  const usedFromNoLectivas = Math.max(0, horasCubiertas - budget.surplus)
-  const remainingNoLectivas = Math.max(0, budget.noLectivas - usedFromNoLectivas)
+  
+  // UNIFIED LOGIC: Use surplus (excedentes) first, then no-teaching
+  const totalCubiertoTotal = coberturas.filter(c => c.estado !== 'cancelada' && c.tipo === 'cobertura').length
+  const totalCubiertoSemana = currentWeekAssignments.length
+
+  // Stats for the "Pools" (Linear attribution)
+  const usedFromSurplus = Math.min(totalCubiertoTotal, budget.surplus)
+  const usedFromNoLectivas = Math.max(0, totalCubiertoTotal - budget.surplus)
+  
+  const remainingSurplus = budget.surplus - usedFromSurplus
+  const remainingNoLectivas = budget.noLectivas - usedFromNoLectivas
 
   return (
     <div className="teacher-dashboard">
@@ -234,13 +248,13 @@ function TeacherDashboard({ user: initialUser }) {
           <div className="stat-card">
             <h3>Excedentes Usadas</h3>
             <p style={{ fontSize: '1.5rem', color: 'var(--accent)', fontWeight: 800 }}>
-              {budget.surplus - remainingSurplus} / {budget.surplus}
+              {usedFromSurplus} / {budget.surplus}
             </p>
             <small style={{ opacity: 0.7 }}>bloques pedagógicos</small>
           </div>
           <div className="stat-card">
             <h3>No Lectivas Usadas</h3>
-            <p style={{ fontSize: '1.5rem', color: usedFromNoLectivas > 0 ? '#ef4444' : 'inherit', fontWeight: 800 }}>
+            <p style={{ fontSize: '1.5rem', color: usedFromNoLectivas > budget.noLectivas ? '#ef4444' : 'inherit', fontWeight: 800 }}>
               {usedFromNoLectivas} / {budget.noLectivas}
             </p>
             <small style={{ opacity: 0.7 }}>bloques totales</small>
@@ -248,13 +262,15 @@ function TeacherDashboard({ user: initialUser }) {
           <div className="stat-card">
             <h3>Total Cubierto</h3>
             <p style={{ fontSize: '1.5rem', color: 'var(--accent)', fontWeight: 800 }}>
-              {coberturas.filter(c => c.tipo === 'cobertura').length} blq
+              {totalCubiertoTotal} blq
             </p>
             <small style={{ opacity: 0.7 }}>historial acumulado</small>
           </div>
           <div className="stat-card">
             <h3>Esta Semana</h3>
-            <p style={{ fontSize: '1.5rem', fontWeight: 800 }}>{horasCubiertas} blq</p>
+            <p style={{ fontSize: '1.5rem', color: 'var(--accent)', fontWeight: 800 }}>
+              {totalCubiertoSemana} blq
+            </p>
             <small style={{ opacity: 0.7 }}>coberturas actuales</small>
           </div>
         </section>
