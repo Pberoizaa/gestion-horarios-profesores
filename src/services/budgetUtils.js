@@ -11,8 +11,8 @@ export const getDetailedBudget = (excedentes, noLectivas) => {
   
   return {
     surplus: surplusPedagogical,
-    nonTeaching: nonTeaching,
-    total: surplusPedagogical + nonTeaching
+    noLectivas: parseFloat(nonTeaching || 0),
+    total: surplusPedagogical + parseFloat(nonTeaching || 0)
   }
 }
 
