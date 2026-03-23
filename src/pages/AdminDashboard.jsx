@@ -287,7 +287,7 @@ function AdminDashboard() {
       setSummaryCoverages(sorted)
       setIsSummaryModalOpen(true)
     } catch (error) {
-      alert('Error al obtener resumen: ' + error.message)
+      alert('Error al obtener resumen [v2]: ' + error.message)
     } finally {
       setProcessing(false)
     }
