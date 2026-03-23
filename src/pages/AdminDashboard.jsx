@@ -108,6 +108,11 @@ function AdminDashboard() {
       supabase.removeChannel(channel)
     }
   }, [activeTab])
+  useEffect(() => {
+    if (selectedTeacherId && activeTab === 'coberturas') {
+      fetchTeacherSchedule()
+    }
+  }, [selectedDate, selectedTeacherId, activeTab])
 
   async function fetchPlannerData() {
     setPlannerLoading(true)
@@ -369,8 +374,8 @@ function AdminDashboard() {
       if (sError) throw sError
       setTeacherSchedule(schedule)
 
-      // 2. Fetch coverages for the current week where this teacher is the replacement
-      const { start, end } = getWeekRange(new Date().toISOString().split('T')[0])
+      // 2. Fetch coverages for the selected week where this teacher is the replacement
+      const { start, end } = getWeekRange(selectedDate || new Date().toISOString().split('T')[0])
       const { data: coverages, error: cError } = await supabase
         .from('coberturas')
         .select('*, ausente:profesores!profesor_ausente_id(nombre), horarios(*, asignaturas(nombre))')
@@ -418,6 +423,7 @@ function AdminDashboard() {
     if (coverage) {
       return {
         ...coverage.horarios,
+        tipo: coverage.tipo,
         isInherited: true,
         ausenteNombre: coverage.ausente?.nombre
       }
@@ -1410,7 +1416,11 @@ function AdminDashboard() {
                               >
                                 {item ? (
                                   <div className="item-content">
-                                    {item.isInherited && <span className="type-tag" style={{ background: '#f97316' }}>REEMPLAZO</span>}
+                                    {item.isInherited && (
+                                      <span className="type-tag" style={{ background: item.tipo === 'reemplazo' ? '#f97316' : 'var(--accent)' }}>
+                                        {item.tipo === 'reemplazo' ? 'REEMPLAZO' : 'COBERTURA'}
+                                      </span>
+                                    )}
                                     <span className="subject">
                                       {isTC ? 'TRABAJO COLAB.' : 
                                        isDupla ? 'DUPLA SICOSOCIAL' : 
