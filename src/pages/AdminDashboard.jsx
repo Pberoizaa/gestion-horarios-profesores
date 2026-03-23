@@ -329,28 +329,27 @@ function AdminDashboard() {
     }
   }
 
-  async function handleDeleteCoverage(id) {
-    if (!id) {
-      alert('Error: ID no válido.')
-      return
-    }
-    if (!confirm('¿Deseas eliminar permanentemente esta cobertura?')) return
-    
+  async function handleDeleteCoverage(cov) {
+    // Delete by properties to clean any duplicates for this specific block/date
     try {
-      const { error, count } = await supabase.from('coberturas').delete({ count: 'exact' }).eq('id', id)
+      const { error } = await supabase
+        .from('coberturas')
+        .delete()
+        .eq('fecha', cov.fecha)
+        .eq('horario_id', cov.horario_id)
+        .eq('profesor_ausente_id', cov.profesor_ausente_id)
+      
       if (error) throw error
       
-      alert(`Cobertura eliminada con éxito. (Filas: ${count})`)
+      // Optimistic update for the summary modal
+      setSummaryCoverages(prev => prev.filter(c => 
+        !(c.fecha === cov.fecha && c.horario_id === cov.horario_id && c.profesor_ausente_id === cov.profesor_ausente_id)
+      ))
       
-      // Artificial delay to ensure DB sync before re-fetch
-      await new Promise(r => setTimeout(r, 800))
-      
+      // Refresh other lists
       fetchPlannedCoverages()
       if (selectedTeacherId) {
         fetchTeacherSchedule()
-      }
-      if (isSummaryModalOpen) {
-        fetchDailySummary()
       }
     } catch (error) {
       alert('Error al eliminar: ' + error.message)
@@ -1276,7 +1275,7 @@ function AdminDashboard() {
                           <td>{c.reemplazo?.nombre}</td>
                           <td>{BLOQUES.find(b => b.inicio.startsWith(c.horarios?.hora_inicio?.slice(0,5)))?.id}°</td>
                           <td>
-                            <button type="button" className="btn-delete" onClick={() => { alert('Debug: Click pendiende ' + c.id); handleDeleteCoverage(c.id); }}>Eliminar</button>
+                            <button type="button" className="btn-delete" onClick={() => handleDeleteCoverage(c)}>Eliminar</button>
                           </td>
                         </tr>
                       ))}
@@ -1769,7 +1768,7 @@ function AdminDashboard() {
                               type="button"
                               className="btn-delete"
                               style={{ padding: '0.4rem', fontSize: '1rem' }}
-                              onClick={() => { alert('Debug: Click resumen ' + cov.id); handleDeleteCoverage(cov.id); }}
+                              onClick={() => handleDeleteCoverage(cov)}
                               title="Eliminar esta cobertura"
                             >
                               🗑️
