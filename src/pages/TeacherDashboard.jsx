@@ -9,6 +9,7 @@ function TeacherDashboard() {
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
   const [horarios, setHorarios] = useState([])
+  const [inheritedHorarios, setInheritedHorarios] = useState([])
   const [coberturas, setCoberturas] = useState([])
   const [loading, setLoading] = useState(true)
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false)
@@ -43,6 +44,37 @@ function TeacherDashboard() {
       if (scheduleError) throw scheduleError
       setHorarios(scheduleData)
 
+      // 3. Fetch long-term replacements
+      const { data: replacementPeriods, error: repError } = await supabase
+        .from('reemplazos_periodos')
+        .select('*, ausente:profesores!profesor_ausente_id(nombre)')
+        .eq('profesor_reemplazante_id', profile.id)
+        .eq('activo', true)
+
+      if (repError) throw repError
+
+      // 4. Fetch schedules of absent teachers
+      if (replacementPeriods && replacementPeriods.length > 0) {
+        const ausenteIds = replacementPeriods.map(r => r.profesor_ausente_id)
+        const { data: inheritedData, error: inError } = await supabase
+          .from('horarios')
+          .select('*, asignaturas(nombre)')
+          .in('profesor_id', ausenteIds)
+        
+        if (inError) throw inError
+        
+        // Tag them with the ausente name for the UI
+        const taggedInherited = inheritedData.map(h => ({
+          ...h,
+          isInherited: true,
+          ausenteNombre: replacementPeriods.find(r => r.profesor_ausente_id === h.profesor_id)?.ausente?.nombre
+        }))
+        setInheritedHorarios(taggedInherited)
+      } else {
+        setInheritedHorarios([])
+      }
+
+      // 5. Fetch single-block coverages
       const { data: coverageData, error: coverageError } = await supabase
         .from('coberturas')
         .select('*, ausente:profesores!profesor_ausente_id(nombre), horarios(*, asignaturas(nombre))')
@@ -77,7 +109,15 @@ function TeacherDashboard() {
   }, [user])
 
   const getHorarioAt = (diaId, horaInicio) => {
-    return horarios.find(h => 
+    // Check own schedule first
+    const own = horarios.find(h => 
+      h.dia_semana === diaId && 
+      (h.hora_inicio.slice(0, 5) === horaInicio.slice(0, 5))
+    )
+    if (own) return own
+
+    // Check inherited schedules
+    return inheritedHorarios.find(h => 
       h.dia_semana === diaId && 
       (h.hora_inicio.slice(0, 5) === horaInicio.slice(0, 5))
     )
@@ -319,11 +359,12 @@ function TeacherDashboard() {
                       }
 
                       return (
-                        <td key={d.id} className={`slot ${isClass ? 'is-class' : isTC ? 'is-tc' : isDupla ? 'is-dupla' : isApoderado ? 'is-apoderado' : 'is-available'}`}>
+                        <td key={d.id} className={`slot ${isClass ? 'is-class' : isTC ? 'is-tc' : isDupla ? 'is-dupla' : isApoderado ? 'is-apoderado' : 'is-available'} ${item?.isInherited ? 'is-inherited' : ''}`}>
                           {isClass ? (
                             <div className="item-content">
+                              {item?.isInherited && <span className="type-tag" style={{ background: '#f59e0b' }}>REEMPLAZO</span>}
                               <span className="subject">{item.asignaturas?.nombre}</span>
-                              <span className="course">{item.curso}</span>
+                              <span className="course">{item.curso} {item?.isInherited && `(${item.ausenteNombre})`}</span>
                             </div>
                           ) : isTC ? (
                             <div className="item-content">

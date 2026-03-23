@@ -614,9 +614,61 @@ function AdminDashboard() {
     e.preventDefault()
     setProcessing(true)
     try {
-      const { error } = await supabase.from('reemplazos_periodos').insert([newReemplazo])
+      // 1. Insert the replacement period
+      const { data: newPeriod, error } = await supabase
+        .from('reemplazos_periodos')
+        .insert([newReemplazo])
+        .select()
+        .single()
+      
       if (error) throw error
-      alert('Reemplazo registrado con éxito')
+      
+      // 2. Fetch the absent teacher's schedule to duplicate it as coverages
+      const { data: schedule, error: sError } = await supabase
+        .from('horarios')
+        .select('*')
+        .eq('profesor_id', newReemplazo.profesor_ausente_id)
+      
+      if (sError) throw sError
+
+      // 3. Generate individual coverages for each day in range
+      const startDate = new Date(newReemplazo.fecha_inicio + 'T00:00:00')
+      const endDate = new Date(newReemplazo.fecha_fin + 'T00:00:00')
+      const coveragesToInsert = []
+      
+      // Limit to 60 days to avoid huge loops/errors
+      let loopCount = 0
+      for (let d = new Date(startDate); d <= endDate && loopCount < 60; d.setDate(d.getDate() + 1)) {
+        loopCount++
+        const diaSemana = d.getDay() // 0=Sun, 1=Mon, ..., 6=Sat
+        const dbDiaSemana = diaSemana === 0 ? 7 : diaSemana // Convert to 1-7
+        
+        // Skip weekends
+        if (dbDiaSemana > 5) continue
+        
+        const fechaStr = d.toISOString().split('T')[0]
+        
+        // Find blocks for this day
+        const dayBlocks = schedule.filter(h => h.dia_semana === dbDiaSemana)
+        
+        for (const block of dayBlocks) {
+          coveragesToInsert.push({
+            profesor_ausente_id: newReemplazo.profesor_ausente_id,
+            profesor_reemplazante_id: newReemplazo.profesor_reemplazante_id,
+            fecha: fechaStr,
+            horario_id: block.id,
+            estado: 'pendiente'
+          })
+        }
+      }
+
+      if (coveragesToInsert.length > 0) {
+        // Chunk inserts if too many (Supabase limit is usually high but safe is better)
+        const { error: cError } = await supabase.from('coberturas').insert(coveragesToInsert)
+        if (cError) throw cError
+      }
+
+      alert(`Reemplazo registrado con éxito. Se han cargado ${coveragesToInsert.length} bloques de clase al reemplazante.`)
       setNewReemplazo({ profesor_ausente_id: '', profesor_reemplazante_id: '', fecha_inicio: '', fecha_fin: '', motivo: '' })
       fetchReemplazos()
     } catch (error) {
