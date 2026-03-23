@@ -639,10 +639,13 @@ function AdminDashboard() {
       if (isEditing) {
         // If password is provided, use edge function to update Auth
         if (newProf.password) {
-          const { error: authError } = await supabase.functions.invoke('admin-update-user', {
+          const { data: authData, error: authError } = await supabase.functions.invoke('admin-update-user', {
             body: { userId: editingId, password: newProf.password }
           })
-          if (authError) throw authError
+          if (authError) {
+             const errorMsg = authError.context?.error?.message || authError.message || 'Error desconocido en la función'
+             throw new Error(`Error de autenticación: ${errorMsg}`)
+          }
         }
 
         const { error } = await supabase.rpc('update_professor', {
