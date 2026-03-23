@@ -5,8 +5,8 @@ import { formatLongDate, getWeekRange } from '../services/dateUtils'
 import { BLOQUES, DIAS, DURACION_BLOQUE_H } from '../services/constants'
 import { getDetailedBudget, formatUsage } from '../services/budgetUtils'
 
-function TeacherDashboard() {
-  const [user, setUser] = useState(null)
+function TeacherDashboard({ user: initialUser }) {
+  const [user, setUser] = useState(initialUser)
   const [profile, setProfile] = useState(null)
   const [horarios, setHorarios] = useState([])
   const [inheritedHorarios, setInheritedHorarios] = useState([])
@@ -18,20 +18,23 @@ function TeacherDashboard() {
   const [passwordProcessing, setPasswordProcessing] = useState(false)
 
   useEffect(() => {
-    fetchUserData()
-  }, [])
+    if (initialUser) setUser(initialUser)
+    fetchUserData(initialUser)
+  }, [initialUser])
 
-  async function fetchUserData() {
+  async function fetchUserData(currentUser) {
+    const targetUser = currentUser || user
+    if (!targetUser) {
+      setLoading(false)
+      return
+    }
+
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
-      setUser(user)
-
       const { data: profile, error: profileError } = await supabase
         .from('profesores')
         .select('*')
-        .eq('email', user.email)
-        .single()
+        .ilike('email', targetUser.email)
+        .maybeSingle()
       
       if (profileError) throw profileError
       setProfile(profile)

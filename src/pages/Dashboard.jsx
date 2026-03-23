@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../services/supabase'
 import AdminDashboard from './AdminDashboard'
 import TeacherDashboard from './TeacherDashboard'
@@ -6,43 +7,65 @@ import TeacherDashboard from './TeacherDashboard'
 function Dashboard() {
   const [role, setRole] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [sessionUser, setSessionUser] = useState(null)
+  const navigate = useNavigate()
 
   useEffect(() => {
-    // Get current session immediately (don't rely on INITIAL_SESSION event
-    // which may fire before this listener is registered)
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session?.user) {
-        window.location.href = '/'
-        return
+    // Initial session check
+    const checkSession = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (!session?.user) {
+          navigate('/')
+          return
+        }
+        setSessionUser(session.user)
+        await fetchUserRole(session.user)
+      } catch (err) {
+        console.error('Session check error:', err)
+        navigate('/')
       }
-      fetchUserRole(session.user)
-    })
+    }
 
-    // Listen only for future state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    checkSession()
+
+    // Listen for state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_OUT') {
-        window.location.href = '/'
+        navigate('/')
       } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-        if (session?.user) fetchUserRole(session.user)
+        if (session?.user) {
+          setSessionUser(session.user)
+          await fetchUserRole(session.user)
+        }
       }
     })
 
     return () => { subscription.unsubscribe() }
-  }, [])
+  }, [navigate])
 
   async function fetchUserRole(user) {
     try {
+      // Use ilike for case-insensitive email matching
       const { data: profile, error } = await supabase
         .from('profesores')
         .select('rol')
-        .eq('email', user.email)
-        .single()
+        .ilike('email', user.email)
+        .maybeSingle()
       
       if (error) throw error
-      setRole(profile.rol)
+      
+      if (!profile) {
+        console.warn('No profile found for email:', user.email)
+        // If no profile, they might be a guest or incorrectly registered
+        setRole('profesor') // Default to teacher if authenticated but no profile record
+      } else {
+        setRole(profile.rol)
+      }
     } catch (error) {
       console.error('Error fetching role:', error.message)
-      window.location.href = '/'
+      // Don't navigate away here yet, let TeacherDashboard handle missing data
+      setRole('profesor')
     } finally {
       setLoading(false)
     }
@@ -57,19 +80,21 @@ function Dashboard() {
       flexDirection: 'column',
       gap: '1rem',
       opacity: 0.6,
-      fontSize: '1rem'
+      fontSize: '1rem',
+      background: 'var(--bg)'
     }}>
       <div style={{ fontSize: '2rem' }}>⏳</div>
-      Cargando...
+      <span>Cargando perfil...</span>
+      <div style={{ fontSize: '0.8rem', opacity: 0.5 }}>Verificando acceso</div>
     </div>
   )
 
   return (
     <>
       {role === 'admin' ? (
-        <AdminDashboard />
+        <AdminDashboard user={sessionUser} />
       ) : (
-        <TeacherDashboard />
+        <TeacherDashboard user={sessionUser} />
       )}
     </>
   )
