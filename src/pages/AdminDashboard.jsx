@@ -5,6 +5,7 @@ import logo from '../assets/logo.jpg'
 import { formatLongDate, getWeekRange } from '../services/dateUtils'
 import { BLOQUES, DIAS, DURACION_BLOQUE_H } from '../services/constants'
 import { getDetailedBudget, formatUsage } from '../services/budgetUtils'
+import { MiniCalendar } from '../components/MiniCalendar'
 
 
 
@@ -37,6 +38,7 @@ function AdminDashboard() {
   const [assignments, setAssignments] = useState({}) // { horarioId: substituteId }
   const [plannedCoverages, setPlannedCoverages] = useState([])
   const [plannerLoading, setPlannerLoading] = useState(false)
+  const [activeCoverageDates, setActiveCoverageDates] = useState([])
   
   // Reemplazos de Larga Duración State
   const [reemplazos, setReemplazos] = useState([])
@@ -69,6 +71,7 @@ function AdminDashboard() {
     fetchProfesores()
     fetchReemplazos()
     fetchAsignaturas()
+    fetchCoverageDates()
   }, [])
 
   useEffect(() => {
@@ -264,6 +267,7 @@ function AdminDashboard() {
       alert('Planificación guardada con éxito.')
       setAssignments({})
       fetchPlannedCoverages()
+      fetchCoverageDates()
     } catch (error) {
       alert('Error guardando coberturas: ' + error.message)
     } finally {
@@ -304,6 +308,21 @@ function AdminDashboard() {
       alert('Error al obtener resumen [v3]: ' + error.message)
     } finally {
       setProcessing(false)
+    }
+  }
+
+  async function fetchCoverageDates() {
+    try {
+      const { data, error } = await supabase
+        .from('coberturas')
+        .select('fecha')
+        .neq('estado', 'cancelada')
+      
+      if (error) throw error
+      const uniqueDates = Array.from(new Set(data.map(d => d.fecha)))
+      setActiveCoverageDates(uniqueDates)
+    } catch (error) {
+      console.error('Error fetching coverage dates:', error.message)
     }
   }
 
@@ -348,6 +367,7 @@ function AdminDashboard() {
       
       // Refresh planner list and teacher schedule
       fetchPlannedCoverages()
+      fetchCoverageDates()
       if (selectedTeacherId) fetchTeacherSchedule()
       
       // NOTE: do NOT call fetchDailySummary here — Supabase may not have committed yet.
@@ -1169,127 +1189,148 @@ function AdminDashboard() {
               <p>Define reemplazos bloque por bloque para ausencias programadas o licencias.</p>
             </div>
 
-            <div className="planner-controls">
-              <div className="form-group">
-                <label>Profesor Ausente</label>
-                <select 
-                  value={absentTeacherId} 
-                  onChange={e => setAbsentTeacherId(e.target.value)}
-                >
-                  <option value="">Seleccionar profesor...</option>
-                  {profesores.filter(p => p.rol === 'profesor').map(p => (
-                    <option key={p.id} value={p.id}>{p.nombre}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="form-group">
-                <label>Fecha de Ausencia</label>
-                <input 
-                  type="date" 
-                  value={selectedDate} 
-                  onChange={e => setSelectedDate(e.target.value)} 
+            <div className="planner-layout">
+              <aside className="planner-sidebar">
+                <MiniCalendar 
+                  selectedDate={selectedDate}
+                  onDateSelect={(date) => setSelectedDate(date)}
+                  activeDates={activeCoverageDates}
                 />
-              </div>
-              <div style={{ display: 'flex', gap: '1rem' }}>
-                <button 
-                  className="btn-save" 
-                  onClick={handleSaveCoverages}
-                  disabled={processing || absentSchedule.length === 0}
-                >
-                  {processing ? 'Guardando...' : 'Guardar Planificación'}
-                </button>
-                <button 
-                  className="btn-edit" 
-                  onClick={fetchDailySummary}
-                  style={{ background: 'var(--accent)', borderColor: 'var(--accent)' }}
-                  disabled={processing}
-                >
-                  📑 Ver Resumen del Día
-                </button>
-              </div>
-            </div>
 
-            <div className="planner-content">
-              {plannerLoading ? (
-                <p className="empty-state">Buscando horarios...</p>
-              ) : absentTeacherId && absentSchedule.length > 0 ? (
-                <div className="planner-blocks">
-                  <h3>Horario de {profesores.find(p => p.id === absentTeacherId)?.nombre}</h3>
-                  {absentSchedule.map(block => {
-                    const available = getAvailableTeachers(block.hora_inicio)
-                    return (
-                      <div key={block.id} className="block-assignment-card">
-                        <div className="block-info">
-                          <span className="block-num">Bloque {BLOQUES.find(b => b.inicio.startsWith(block.hora_inicio.slice(0,5)))?.id || '?'}</span>
-                          <span className="block-time">{block.hora_inicio.slice(0,5)} - {block.hora_fin.slice(0,5)}</span>
-                        </div>
-                        <div className="class-info">
-                          <h4>{block.asignaturas?.nombre || 'Administrativo'}</h4>
-                          <p>{block.curso || '-'}</p>
-                        </div>
-                        <div className="substitute-select">
-                          <select 
-                            value={assignments[block.id] || ''} 
-                            onChange={e => setAssignments({...assignments, [block.id]: e.target.value})}
-                          >
-                            <option value="">Sin reemplazo</option>
-                            {available.map(p => (
-                              <option 
-                                key={p.id} 
-                                value={p.id}
-                                style={{ color: p.isOverSurplus ? '#ef4444' : 'inherit' }}
-                              >
-                                {p.nombre} ({p.remaining} blq {p.isOverSurplus ? '⚠️ NO LECTIVAS' : 'disponibles'})
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      </div>
-                    )
-                  })}
+                <div className="stat-card" style={{ width: '100%', boxSizing: 'border-box' }}>
+                  <h3>Resumen del Día</h3>
+                  <button 
+                    type="button"
+                    className="btn-save" 
+                    style={{ width: '100%', marginTop: '0.5rem' }}
+                    onClick={fetchDailySummary}
+                  >
+                    Ver Coberturas del Día
+                  </button>
                 </div>
-              ) : absentTeacherId ? (
-                <div className="empty-state">
-                  <p>No hay clases que cubrir para este profesor en este día.</p>
-                </div>
-              ) : (
-                <div className="empty-state">
-                  <p>Selecciona un profesor y una fecha para comenzar.</p>
-                </div>
-              )}
-            </div>
+              </aside>
 
-            {plannedCoverages.length > 0 && (
-              <div className="planned-list" style={{ marginTop: '3rem' }}>
-                <h3>Planificaciones Recientes</h3>
-                <div className="grid-wrapper">
-                  <table style={{ background: 'var(--bg)', borderRadius: '1rem', border: '1px solid var(--border)' }}>
-                    <thead>
-                      <tr>
-                        <th>Fecha</th>
-                        <th>Ausente</th>
-                        <th>Reemplazo</th>
-                        <th>Bloque</th>
-                        <th>Acción</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {plannedCoverages.map(c => (
-                        <tr key={c.id}>
-                          <td>{new Date(c.fecha + 'T00:00:00').toLocaleDateString('es-ES')}</td>
-                          <td>{c.ausente?.nombre}</td>
-                          <td>{c.reemplazo?.nombre}</td>
-                          <td>{BLOQUES.find(b => b.inicio.startsWith(c.horarios?.hora_inicio?.slice(0,5)))?.id}°</td>
-                          <td>
-                            <button type="button" className="btn-delete" onClick={() => handleDeleteCoverage(c)}>Eliminar</button>
-                          </td>
-                        </tr>
+              <main className="planner-main">
+                <div className="planner-controls" style={{ marginBottom: '1.5rem' }}>
+                  <div className="form-group">
+                    <label>Profesor Ausente</label>
+                    <select 
+                      value={absentTeacherId} 
+                      onChange={e => setAbsentTeacherId(e.target.value)}
+                    >
+                      <option value="">Seleccionar profesor...</option>
+                      {profesores.filter(p => !['UTP', 'Apoyo UTP'].includes(p.cargo)).map(p => (
+                        <option key={p.id} value={p.id}>{p.nombre}</option>
                       ))}
-                    </tbody>
-                  </table>
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label>Fecha Seleccionada</label>
+                    <input 
+                      type="date" 
+                      value={selectedDate} 
+                      onChange={e => setSelectedDate(e.target.value)} 
+                    />
+                  </div>
+                  <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-end' }}>
+                    <button 
+                      className="btn-save" 
+                      onClick={handleSaveCoverages}
+                      disabled={processing || absentSchedule.length === 0}
+                    >
+                      {processing ? 'Guardando...' : 'Guardar Planificación'}
+                    </button>
+                  </div>
                 </div>
-              </div>
-            )}
+
+                <div className="planner-content">
+                  {plannerLoading ? (
+                    <div className="empty-state">
+                      <p>Buscando disponibilidad para {selectedDate}...</p>
+                    </div>
+                  ) : absentTeacherId && absentSchedule.length > 0 ? (
+                    <div className="planner-blocks">
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                        <h3 style={{ margin: 0 }}>Horario de {profesores.find(p => p.id === absentTeacherId)?.nombre}</h3>
+                        <span className="legend-item coverage">{selectedDate}</span>
+                      </div>
+                      {absentSchedule.map(block => {
+                        const available = getAvailableTeachers(block.hora_inicio)
+                        return (
+                          <div key={block.id} className="block-assignment-card">
+                            <div className="block-info">
+                              <span className="block-num">Bloque {BLOQUES.find(b => b.inicio.startsWith(block.hora_inicio.slice(0,5)))?.id || '?'}</span>
+                              <span className="block-time">{block.hora_inicio.slice(0,5)} - {block.hora_fin.slice(0,5)}</span>
+                            </div>
+                            <div className="class-info">
+                              <h4>{block.asignaturas?.nombre || 'Administrativo'}</h4>
+                              <p>{block.curso || '-'}</p>
+                            </div>
+                            <div className="substitute-select">
+                              <select 
+                                value={assignments[block.id] || ''} 
+                                onChange={e => setAssignments({...assignments, [block.id]: e.target.value})}
+                              >
+                                <option value="">Sin reemplazo</option>
+                                {available.map(p => (
+                                  <option 
+                                    key={p.id} 
+                                    value={p.id}
+                                    style={{ color: p.isOverSurplus ? '#ef4444' : 'inherit' }}
+                                  >
+                                    {p.nombre} ({p.remaining} blq {p.isOverSurplus ? '⚠️ NO LECTIVAS' : 'disponibles'})
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  ) : absentTeacherId ? (
+                    <div className="empty-state">
+                      <p>No hay clases que cubrir para este profesor en este día ({selectedDate}).</p>
+                    </div>
+                  ) : (
+                    <div className="empty-state">
+                      <p>Selecciona un profesor y una fecha para comenzar.</p>
+                    </div>
+                  )}
+                </div>
+
+                {plannedCoverages.length > 0 && (
+                  <div className="planned-list" style={{ marginTop: '3rem' }}>
+                    <h3>Planificaciones Recientes</h3>
+                    <div className="grid-wrapper">
+                      <table style={{ background: 'var(--bg)', borderRadius: '1rem', border: '1px solid var(--border)' }}>
+                        <thead>
+                          <tr>
+                            <th>Fecha</th>
+                            <th>Ausente</th>
+                            <th>Reemplazo</th>
+                            <th>Bloque</th>
+                            <th>Acción</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {plannedCoverages.map(c => (
+                            <tr key={c.id}>
+                              <td>{new Date(c.fecha + 'T00:00:00').toLocaleDateString('es-ES')}</td>
+                              <td>{c.ausente?.nombre}</td>
+                              <td>{c.reemplazo?.nombre}</td>
+                              <td>{BLOQUES.find(b => b.inicio.startsWith(c.horarios?.hora_inicio?.slice(0,5)))?.id}°</td>
+                              <td>
+                                <button type="button" className="btn-delete" onClick={() => handleDeleteCoverage(c)}>Eliminar</button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </main>
+            </div>
           </section>
         ) : activeTab === 'horarios' ? (
           <section className="horarios-section">

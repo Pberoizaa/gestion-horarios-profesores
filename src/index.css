@@ -809,3 +809,159 @@ main {
 .btn-edit:hover {
   background: var(--border);
 }
+
+/* Mini Calendar Styles */
+.mini-calendar {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 1.25rem;
+  padding: 1.5rem;
+  box-shadow: var(--shadow);
+  width: 100%;
+  max-width: 320px;
+}
+
+.calendar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.25rem;
+}
+
+.month-label {
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--text-h);
+}
+
+.month-nav {
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.month-nav:hover {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.25rem;
+}
+
+.grid-dayheader {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-align: center;
+  padding: 0.5rem 0;
+  opacity: 0.5;
+  text-transform: uppercase;
+}
+
+.grid-day {
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  font-weight: 500;
+  border-radius: 0.6rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+}
+
+.grid-day:hover:not(.empty) {
+  background: var(--bg-soft);
+  transform: scale(1.1);
+}
+
+.grid-day.is-selected {
+  background: var(--accent) !important;
+  color: white !important;
+  font-weight: 700;
+  box-shadow: 0 4px 12px rgba(93, 153, 212, 0.3);
+}
+
+.grid-day.has-activity::after {
+  content: '';
+  position: absolute;
+  bottom: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 4px;
+  height: 4px;
+  background: var(--secondary);
+  border-radius: 50%;
+}
+
+.grid-day.is-today {
+  border: 2px solid var(--accent);
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.calendar-footer {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 1rem;
+}
+
+.footer-item {
+  font-size: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  opacity: 0.8;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.dot.activity { background: var(--secondary); }
+.dot.today { border: 1.5px solid var(--accent); }
+
+/* Coverage Planner Layout Update */
+.planner-layout {
+  display: flex;
+  gap: 2rem;
+  align-items: flex-start;
+  margin-top: 1.5rem;
+}
+
+.planner-sidebar {
+  flex: 0 0 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.planner-main {
+  flex: 1;
+}
+
+@media (max-width: 900px) {
+  .planner-layout {
+    flex-direction: column;
+  }
+  .planner-sidebar {
+    width: 100%;
+    flex: none;
+    align-items: center;
+  }
+}
