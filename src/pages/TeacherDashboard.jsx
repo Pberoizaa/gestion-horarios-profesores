@@ -365,7 +365,7 @@ function TeacherDashboard({ user: initialUser }) {
                       const isApoderado = type === 'apoderado'
                       const isBloqueado = type === 'bloqueado'
                       const isClass = item && !isTC && !isDupla && !isApoderado && !isBloqueado
-                      const isFridayEarlyExit = d.id === 5 && b.id > 6
+                      const isFridayEnd = d.id === 5 && b.id > 6
                       
                       // Check for coverage in the current week
                       const { start, end } = getWeekRange(new Date().toISOString().split('T')[0])
@@ -377,7 +377,7 @@ function TeacherDashboard({ user: initialUser }) {
                         c.estado !== 'cancelada'
                       )
 
-                      if (isFridayEarlyExit || (b.id === 10 && !item)) {
+                      if (isFridayEnd || (b.id === 10 && !item)) {
                         return <td key={d.id} className="slot is-disabled"></td>
                       }
 
@@ -394,8 +394,8 @@ function TeacherDashboard({ user: initialUser }) {
                       }
 
                       return (
-                        <td key={d.id} className={`slot ${isBloqueado ? 'is-bloqueado' : isClass ? 'is-class' : isTC ? 'is-tc' : isDupla ? 'is-dupla' : isApoderado ? 'is-apoderado' : 'is-available'} ${item?.isInherited ? 'is-inherited' : ''}`}>
-                          {item ? (
+                        <td key={d.id} className={`slot ${isFridayEnd ? 'is-disabled' : isBloqueado ? 'is-bloqueado' : isClass ? 'is-class' : isTC ? 'is-tc' : isDupla ? 'is-dupla' : isApoderado ? 'is-apoderado' : 'is-available'} ${item?.isInherited ? 'is-inherited' : ''}`}>
+                          {isFridayEnd ? null : item ? (
                             <div className="item-content">
                               {isBloqueado ? (
                                 <>

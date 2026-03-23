@@ -1516,7 +1516,7 @@ function AdminDashboard() {
                                     )}
                                   </div>
                                 ) : (
-                                  <span className="available-label" style={{ opacity: 0.3 }}>+</span>
+                                  !isFridayEnd && <span className="available-label" style={{ opacity: 0.3 }}>+</span>
                                 )}
                               </td>
                             )

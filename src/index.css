@@ -641,11 +641,17 @@ main {
 }
 
 .slot.is-disabled {
-  background: #f8fafc;
-  border: 1px solid #f1f5f9 !important;
-  cursor: default !important;
+  background: repeating-linear-gradient(
+    45deg,
+    #f8fafc,
+    #f8fafc 10px,
+    #f1f5f9 10px,
+    #f1f5f9 20px
+  );
+  border: 1px solid #e2e8f0 !important;
+  cursor: not-allowed !important;
   pointer-events: none;
-  opacity: 0.6;
+  opacity: 0.5;
 }
 
 .type-tag {
