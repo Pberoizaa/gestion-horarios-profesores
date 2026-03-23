@@ -48,7 +48,7 @@ function Login() {
               type="text"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="ej: fabian.aravena"
+              placeholder="nombre.apellido"
               required
             />
             {!email.includes('@') && email && (

@@ -1043,7 +1043,7 @@ function AdminDashboard() {
                       <input 
                         type="text" 
                         required 
-                        placeholder="usuario (ej: alfredo.vivar)"
+                        placeholder="nombre.apellido"
                         value={newProf.email} 
                         onChange={e => setNewProf({...newProf, email: e.target.value})} 
                       />
