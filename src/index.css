@@ -1319,3 +1319,47 @@ button, select, input, .tab-button {
   color: #0369a1;
   border: 1px solid #bae6fd;
 }
+
+/* --- Admin Actions & Search Bar --- */
+.admin-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+}
+
+.search-bar {
+  position: relative;
+  width: 100%;
+}
+
+.search-bar input {
+  width: 100%;
+  padding: 0.75rem 1rem 0.75rem 2.8rem;
+  border-radius: 1rem;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  box-shadow: var(--shadow);
+  font-size: 1rem;
+  transition: all 0.2s;
+  color: var(--text);
+}
+
+.search-bar input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+}
+
+.search-bar::before {
+  content: '🔍';
+  position: absolute;
+  left: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 1.1rem;
+  opacity: 0.6;
+  pointer-events: none;
+}
