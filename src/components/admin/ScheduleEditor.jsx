@@ -201,10 +201,12 @@ const ScheduleEditor = ({ supabase, profesores, asignaturas }) => {
       <div className="planner-controls" style={{ background: 'var(--bg-soft)', padding: '1.5rem', borderRadius: '1.5rem', marginBottom: '2.5rem' }}>
         <div className="form-group" style={{ maxWidth: '400px' }}>
           <label>Seleccionar Profesor</label>
-          <select value={selectedTeacherId} onChange={e => setSelectedTeacherId(e.target.value)}>
-            <option value="">Seleccionar profesor...</option>
-            {profesores.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
-          </select>
+          <div className="search-bar">
+            <select value={selectedTeacherId} onChange={e => setSelectedTeacherId(e.target.value)} style={{ paddingLeft: '3.5rem' }}>
+              <option value="">Seleccionar profesor...</option>
+              {profesores.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+            </select>
+          </div>
         </div>
         <div className="action-buttons" style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
           <button className="secondary" onClick={() => exportToExcel(profesores.find(p => p.id === selectedTeacherId), teacherSchedule)} disabled={!selectedTeacherId}>
