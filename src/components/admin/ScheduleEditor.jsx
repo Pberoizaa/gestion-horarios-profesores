@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import { BLOQUES, DIAS } from '../../services/constants';
 import { getWeekRange } from '../../services/dateUtils';
@@ -12,6 +12,9 @@ const ScheduleEditor = ({ supabase, profesores, asignaturas }) => {
   const [loading, setLoading] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef(null);
   const [editingBlock, setEditingBlock] = useState(null);
   const [newBlock, setNewBlock] = useState({
     asignatura_id: '',
@@ -20,6 +23,16 @@ const ScheduleEditor = ({ supabase, profesores, asignaturas }) => {
     dia_semana: 1,
     bloque_id: 1
   });
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     if (selectedTeacherId) {
@@ -201,11 +214,45 @@ const ScheduleEditor = ({ supabase, profesores, asignaturas }) => {
       <div className="planner-controls" style={{ background: 'var(--bg-soft)', padding: '1.5rem', borderRadius: '1.5rem', marginBottom: '2.5rem' }}>
         <div className="form-group" style={{ maxWidth: '400px' }}>
           <label>Seleccionar Profesor</label>
-          <div className="search-bar">
-            <select value={selectedTeacherId} onChange={e => setSelectedTeacherId(e.target.value)} style={{ paddingLeft: '3.5rem' }}>
-              <option value="">Seleccionar profesor...</option>
-              {profesores.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
-            </select>
+          <div className="searchable-dropdown" ref={dropdownRef}>
+            <div className="search-bar">
+              <input 
+                type="text" 
+                placeholder="Escribe para buscar profesor..." 
+                value={searchTerm || (profesores.find(p => p.id === selectedTeacherId)?.nombre || '')}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setIsOpen(true);
+                  if (!e.target.value) setSelectedTeacherId('');
+                }}
+                onFocus={() => setIsOpen(true)}
+                style={{ paddingLeft: '3.5rem' }}
+              />
+            </div>
+            
+            {isOpen && (
+              <div className="dropdown-results">
+                {profesores
+                  .filter(p => !searchTerm || p.nombre.toLowerCase().includes(searchTerm.toLowerCase()))
+                  .map(p => (
+                    <div 
+                      key={p.id} 
+                      className="dropdown-item"
+                      onClick={() => {
+                        setSelectedTeacherId(p.id);
+                        setSearchTerm(p.nombre);
+                        setIsOpen(false);
+                      }}
+                    >
+                      {p.nombre}
+                    </div>
+                  ))
+                }
+                {profesores.filter(p => !searchTerm || p.nombre.toLowerCase().includes(searchTerm.toLowerCase())).length === 0 && (
+                  <div className="dropdown-item no-results">No se encontraron profesores</div>
+                )}
+              </div>
+            )}
           </div>
         </div>
         <div className="action-buttons" style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
