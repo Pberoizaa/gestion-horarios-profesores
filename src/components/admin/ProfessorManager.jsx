@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-const ProfessorManager = ({ supabase, profesores, loading, onRefresh }) => {
+const ProfessorManager = ({ supabase, profesores, loading, todaySummary, onRefresh }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -135,8 +135,18 @@ const ProfessorManager = ({ supabase, profesores, loading, onRefresh }) => {
           <p>{profesores.filter(p => p.activo).length}</p>
         </div>
         <div className="stat-card">
-          <h3>Total de Bloques Ocupados</h3>
-          <p>-</p>
+          <h3>Reemplazos del Día</h3>
+          <div className="summary-list" style={{ marginTop: '0.5rem', fontSize: '0.9rem', color: 'var(--text-soft)' }}>
+            {todaySummary && todaySummary.length > 0 ? (
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                {todaySummary.map((s, idx) => (
+                  <li key={idx} style={{ marginBottom: '0.25rem' }}>• {s}</li>
+                ))}
+              </ul>
+            ) : (
+              <p style={{ opacity: 0.6 }}>Sin reemplazos hoy</p>
+            )}
+          </div>
         </div>
       </section>
 

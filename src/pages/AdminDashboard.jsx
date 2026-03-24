@@ -20,6 +20,7 @@ function AdminDashboard() {
   const [plannedCoverages, setPlannedCoverages] = useState([]);
   const [activeCoverageDates, setActiveCoverageDates] = useState([]);
   const [allSchedules, setAllSchedules] = useState([]);
+  const [todaySummary, setTodaySummary] = useState([]);
   const [processing, setProcessing] = useState(false);
 
   // Password Change State
@@ -71,12 +72,23 @@ function AdminDashboard() {
   };
 
   const fetchCoverageData = async () => {
-    const [{ data: coverages }, { data: dates }] = await Promise.all([
+    const today = new Date().toISOString().split('T')[0];
+    const [{ data: coverages }, { data: dates }, { data: todayCov }] = await Promise.all([
       supabase.from('coberturas').select('*, ausente:profesores!profesor_ausente_id(nombre), reemplazo:profesores!profesor_reemplazante_id(nombre), horarios(*)').eq('tipo', 'cobertura').order('fecha', { ascending: false }).limit(50),
-      supabase.from('coberturas').select('fecha').eq('tipo', 'cobertura').neq('estado', 'cancelada')
+      supabase.from('coberturas').select('fecha').eq('tipo', 'cobertura').neq('estado', 'cancelada'),
+      supabase.from('coberturas').select('ausente:profesores!profesor_ausente_id(nombre), reemplazo:profesores!profesor_reemplazante_id(nombre)').eq('fecha', today).eq('tipo', 'cobertura').neq('estado', 'cancelada')
     ]);
     setPlannedCoverages(coverages || []);
     setActiveCoverageDates(Array.from(new Set((dates || []).map(d => d.fecha))));
+    
+    // Format unique today summary
+    const summaryMap = new Map();
+    (todayCov || []).forEach(c => {
+      if (c.ausente && c.reemplazo) {
+        summaryMap.set(c.ausente.nombre, c.reemplazo.nombre);
+      }
+    });
+    setTodaySummary(Array.from(summaryMap.entries()).map(([ausente, reemplazo]) => `${ausente} (por ${reemplazo})`));
   };
 
   const fetchActivityLogs = async () => {
@@ -140,6 +152,7 @@ function AdminDashboard() {
               supabase={supabase} 
               profesores={profesores} 
               loading={loading} 
+              todaySummary={todaySummary}
               onRefresh={fetchProfesores} 
             />
           )}
