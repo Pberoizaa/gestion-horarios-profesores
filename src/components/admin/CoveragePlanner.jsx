@@ -167,13 +167,16 @@ const CoveragePlanner = ({
   };
 
   const handleDownloadExcel = () => {
-    const data = summaryCoverages.map(cov => ({
-      'Bloque': `${cov.horarios?.bloque_id}°`,
-      'Ausente': cov.ausente?.nombre,
-      'Reemplazo': cov.reemplazo?.nombre,
-      'Asignatura': cov.horarios?.asignaturas?.nombre || 'Administrativo',
-      'Curso': cov.curso || '-'
-    }));
+    const data = summaryCoverages.map(cov => {
+      const blockId = BLOQUES.find(b => b.inicio.startsWith(cov.horarios?.hora_inicio?.slice(0,5)))?.id || cov.horarios?.bloque_id;
+      return {
+        'Bloque': `${blockId}°`,
+        'Ausente': cov.ausente?.nombre,
+        'Reemplazo': cov.reemplazo?.nombre,
+        'Asignatura': cov.horarios?.asignaturas?.nombre || 'Administrativo',
+        'Curso': cov.horarios?.curso || '-'
+      };
+    });
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Coberturas");
@@ -280,21 +283,26 @@ const CoveragePlanner = ({
                   <th>Ausente</th>
                   <th>Reemplazo</th>
                   <th>Asignatura</th>
+                  <th>Curso</th>
                   <th>Acciones</th>
                 </tr>
               </thead>
               <tbody>
-                {summaryCoverages.map(c => (
-                  <tr key={c.id}>
-                    <td>{c.horarios?.bloque_id}°</td>
-                    <td>{c.ausente?.nombre}</td>
-                    <td>{c.reemplazo?.nombre}</td>
-                    <td>{c.horarios?.asignaturas?.nombre}</td>
-                    <td>
-                      <button className="btn-delete" onClick={() => handleDeleteCoverage(c)}>Eliminar</button>
-                    </td>
-                  </tr>
-                ))}
+                {summaryCoverages.map(c => {
+                  const blockId = BLOQUES.find(b => b.inicio.startsWith(c.horarios?.hora_inicio?.slice(0,5)))?.id || c.horarios?.bloque_id;
+                  return (
+                    <tr key={c.id}>
+                      <td>{blockId}°</td>
+                      <td>{c.ausente?.nombre}</td>
+                      <td>{c.reemplazo?.nombre}</td>
+                      <td>{c.horarios?.asignaturas?.nombre}</td>
+                      <td>{c.horarios?.curso || '-'}</td>
+                      <td>
+                        <button className="btn-delete" onClick={() => handleDeleteCoverage(c)}>Eliminar</button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
