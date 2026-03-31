@@ -16,9 +16,9 @@ const ActivityMonitor = ({ activityLogs, loading }) => {
             <p>No hay actividad registrada aún.</p>
           </div>
         ) : (
-          <div className="grid-wrapper">
-            <table className="responsive-table">
-              <thead>
+          <div style={{ maxHeight: '420px', overflowY: 'auto', border: '1px solid var(--border)', borderRadius: '8px' }}>
+            <table className="responsive-table" style={{ marginTop: 0 }}>
+              <thead style={{ position: 'sticky', top: 0, background: 'var(--card-bg)', zIndex: 1 }}>
                 <tr>
                   <th>Fecha y Hora</th>
                   <th>Profesor</th>

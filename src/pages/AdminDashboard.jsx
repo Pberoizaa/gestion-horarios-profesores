@@ -10,6 +10,7 @@ import LongTermReplacements from '../components/admin/LongTermReplacements';
 import ScheduleEditor from '../components/admin/ScheduleEditor';
 import ActivityMonitor from '../components/admin/ActivityMonitor';
 import WeeklyHistory from '../components/admin/WeeklyHistory';
+import CoverageSummary from '../components/admin/CoverageSummary';
 
 function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('profesores');
@@ -239,6 +240,12 @@ function AdminDashboard() {
           )}
           {activeTab === 'monitoreo' && (
             <>
+              <CoverageSummary
+                coverages={plannedCoverages}
+                profesores={profesores}
+                loading={loading}
+              />
+
               <div className="admin-actions-section" style={{ marginBottom: '2rem', padding: '1rem', borderBottom: '2px dashed var(--border)' }}>
                 <h3>Cierre de Ciclo Semanal</h3>
                 <p style={{ fontSize: '0.9rem', color: 'var(--text-soft)', marginBottom: '1rem' }}>
